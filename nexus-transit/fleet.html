@@ -1,0 +1,10 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>NEXUS TRANSIT</title><link rel=stylesheet href=style.css><link rel=stylesheet href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"><script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script></head><body><div id=root></div><script src=app.js></script><script>
+N.shell('fleet','Live Fleet');window.selId=null;let q='',f='ALL';
+app.innerHTML='<div class=g2><div class=card><div id=m class="map tall"></div></div><div class=card><div class=bar style="margin-bottom:10px"><input id=q placeholder="Search bus, driver, reg" style="flex:1"><select id=f><option>ALL</option><option>LIVE</option><option>STALE</option><option>INC</option></select></div><div class=list id=fl style="max-height:300px"></div><h3 style="margin-top:14px">Detail</h3><div id=d style="color:var(--mu)">Select a bus.</div></div></div>';
+const mp=N.map('m');
+window.pick=id=>{selId=id;mp.setView(N.pos(N.buses.find(x=>x.id==id)),14);r()};
+document.getElementById("q").oninput=e=>{q=e.target.value.toLowerCase();r()};document.getElementById('f').onchange=e=>{f=e.target.value;r()};
+function r(){const L_=N.buses.filter(b=>(f=='ALL'||N.status(b)==f)&&(b.id+b.reg+b.driver).toLowerCase().includes(q));fl.innerHTML=L_.map(N.busRow).join('')||'No buses match';N.upd(mp,selId);
+const b=N.buses.find(x=>x.id==selId);if(b){const t=b.dir>0?Math.round(b.t*100):Math.round((1-b.t)*100),inc=N.inc.filter(i=>i.bus==b.id);d.innerHTML='<b>'+b.id+'</b> · '+b.driver+'<br>'+b.route.name+'<br>Trip progress ≈ '+t+'% (estimate)<br>Speed '+Math.round(b.speed)+' km/h · GPS accuracy ±8 m (demo)<br>Last fix: '+N.ago(b.seen)+' · '+N.status(b)+(inc.length?'<br>Incidents: '+inc.map(i=>'<a style=color:var(--cy) href=incidents.html#'+i.id+'>'+i.id+'</a>').join(', '):'')}}
+r();setInterval(()=>{N.tick();r()},3000);
+</script></body></html>

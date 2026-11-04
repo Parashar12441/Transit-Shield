@@ -1,0 +1,19 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>NEXUS TRANSIT</title><link rel=stylesheet href=style.css><link rel=stylesheet href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"><script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script></head><body><div id=root></div><script src=app.js></script><script>
+N.shell('trips','Trip History');
+app.innerHTML='<div class=g2><div class=card><div id=m class="map tall"></div><div class=bar style="margin-top:10px"><button class="btn p" id=pp>Play</button><input type=range id=sk min=0 max=119 value=0 style="flex:1"><select id=sp><option value=1>1x</option><option value=2>2x</option><option value=4>4x</option></select><span id=tt class=mono></span></div></div><div class=card><input id=q placeholder="Search bus, driver, route" style="width:100%;margin-bottom:10px"><div class=list id=tl style="max-height:230px"></div><h3 style="margin-top:14px">Trip events</h3><div class=tl id=ev></div><small style=color:var(--mu)>Path is derived from planned route geometry (estimate), not recorded GPS telemetry.</small></div></div>';
+const trips=N.buses.map((b,i)=>({b,start:new Date(new Date().setHours(6,0,0,0)+i*20*60000),dur:(50+i*3)*60000}));
+const at=(r,t)=>{const p=r.pts,x=t*(p.length-1),i=Math.min(Math.floor(x),p.length-2),f=x-i;return[p[i][0]+(p[i+1][0]-p[i][0])*f,p[i][1]+(p[i+1][1]-p[i][1])*f]};
+const mp=L.map('m').setView([26.465,80.31],12);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(mp);
+let cur=trips[0],line,mk,layer=L.layerGroup().addTo(mp),idx=0,timer=null,sel=0;
+const pt=i=>at(cur.b.route,i/119);
+function show(i){idx=+i;sk.value=idx;mk.setLatLng(pt(idx));tt.textContent=new Date(cur.start.getTime()+cur.dur*idx/119).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}
+function load(k){sel=k;cur=trips[k];if(line)mp.removeLayer(line);if(mk)mp.removeLayer(mk);layer.clearLayers();
+line=L.polyline(Array.from({length:120},(_,i)=>pt(i)),{color:cur.b.route.c,weight:4,opacity:.7}).addTo(mp);mk=L.circleMarker(pt(0),{radius:8,color:'#fff',fillColor:'#49D9FF',fillOpacity:1}).addTo(mp);mp.fitBounds(line.getBounds(),{padding:[30,30]});
+const L_=N.routes.length,ev=[{f:0,x:'Trip started'}];cur.b.route.pts.forEach((p,i)=>ev.push({f:i/(cur.b.route.pts.length-1),x:'Reached stop '+(i+1)}));
+N.inc.filter(i=>i.bus==cur.b.id).forEach((i,j)=>{const f=.3+.25*j;ev.push({f,x:'Incident '+i.id+' – '+i.type,inc:1});L.circleMarker(at(cur.b.route,f),{radius:7,color:'#FF4D67',fillOpacity:.8}).addTo(layer).bindTooltip(i.id)});
+if(cur.b.stale)ev.push({f:.6,x:'GPS data gap – no fixes received (missing data)',gap:1});ev.push({f:1,x:'Trip ended'});
+ev.sort((a,b)=>a.f-b.f);document.getElementById('ev').innerHTML=ev.map(e=>'<div style="'+(e.inc?'color:var(--cr)':e.gap?'color:var(--wa)':'')+'">'+e.x+'<small class=mono>'+new Date(cur.start.getTime()+cur.dur*e.f).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})+' (est.)</small></div>').join('');show(0);list()}
+function list(){const q=document.getElementById('q').value.toLowerCase();tl.innerHTML=trips.map((t,k)=>({t,k})).filter(({t})=>(t.b.id+t.b.driver+t.b.route.name).toLowerCase().includes(q)).map(({t,k})=>'<div class="row '+(k==sel?'sel':'')+'" onclick="load('+k+')"><div class=gr><b>'+t.b.id+'</b> · '+t.b.route.id+'<small>'+t.b.driver+' · '+Math.round(t.dur/60000)+' min · ~'+(12+k)+' km (est.)</small></div></div>').join('')||'No trips match'}
+pp.onclick=()=>{if(timer){clearInterval(timer);timer=null;pp.textContent='Play'}else{pp.textContent='Pause';timer=setInterval(()=>{if(idx>=119){pp.click();return}show(idx+ +sp.value)},200)}};
+sk.oninput=e=>show(e.target.value);document.getElementById('q').oninput=list;load(0);
+</script></body></html>

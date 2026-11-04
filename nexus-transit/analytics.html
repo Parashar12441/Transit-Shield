@@ -1,0 +1,9 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>NEXUS TRANSIT</title><link rel=stylesheet href=style.css><link rel=stylesheet href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"><script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script></head><body><div id=root></div><script src=app.js></script><script>
+N.shell('analytics','Safety Analytics');
+app.innerHTML='<div class=g3><div class=card><h3>By severity</h3><canvas id=a></canvas></div><div class=card><h3>By type</h3><canvas id=b></canvas></div><div class=card><h3>By status</h3><canvas id=c></canvas></div></div><div class=card><h3>Response summary</h3><div id=s></div></div>';
+const cnt=k=>{const o={};N.inc.forEach(i=>o[i[k]]=(o[i[k]]||0)+1);return o};
+const mk=(id,k,type)=>{const o=cnt(k);new Chart(document.getElementById(id),{type,data:{labels:Object.keys(o),datasets:[{data:Object.values(o),backgroundColor:['#49D9FF','#4B7BFF','#38D996','#FFB547','#FF4D67','#8795AA']}]},options:{plugins:{legend:{display:type!='bar',labels:{color:'#8795AA'}}},scales:type=='bar'?{x:{ticks:{color:'#8795AA'}},y:{ticks:{color:'#8795AA',precision:0}}}:{}}})};
+mk('a','sev','doughnut');mk('b','type','bar');mk('c','status','pie');
+const ack=N.inc.filter(i=>i.ev[1]).map(i=>(i.ev[1].t-i.at)/60000);
+s.innerHTML='Incidents: '+N.inc.length+' · Acknowledged: '+ack.length+(ack.length?' · Mean ack time ≈ '+(ack.reduce((x,y)=>x+y,0)/ack.length).toFixed(1)+' min':'')+'<br><small style=color:var(--mu)>Computed from current demo incidents (including any you changed). Not real measurements.</small>';
+</script></body></html>

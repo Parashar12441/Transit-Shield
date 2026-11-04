@@ -1,0 +1,30 @@
+const N={};
+N.routes=[{id:'R1',name:'Kalyanpur – Central Station',c:'#49D9FF',lim:50,pts:[[26.5105,80.233],[26.496,80.28],[26.478,80.31],[26.46,80.327],[26.4499,80.35]]},
+{id:'R2',name:'Swaroop Nagar – Govind Nagar',c:'#4B7BFF',lim:40,pts:[[26.475,80.33],[26.46,80.32],[26.445,80.31],[26.435,80.295],[26.42,80.28]]},
+{id:'R3',name:'IIT Kanpur – Rawatpur',c:'#38D996',lim:50,pts:[[26.513,80.232],[26.49,80.265],[26.47,80.295],[26.456,80.315],[26.44,80.335]]}];
+const D=['R. Verma','S. Yadav','A. Khan','M. Singh','P. Mishra','K. Dubey','V. Gupta','D. Tiwari','N. Sharma','H. Ali','T. Pal','J. Rao'];
+N.buses=D.map((d,i)=>({id:'KNP-'+(101+i),reg:'UP78 AT '+(4100+i*37),driver:d,route:N.routes[i%3],t:(i*0.17)%1,dir:i%2?1:-1,speed:30+(i*7)%25,stale:i==4||i==9,seen:Date.now()}));
+N.pos=b=>{const p=b.route.pts,x=b.t*(p.length-1),i=Math.min(Math.floor(x),p.length-2),f=x-i;return[p[i][0]+(p[i+1][0]-p[i][0])*f,p[i][1]+(p[i+1][1]-p[i][1])*f]};
+N.tick=()=>N.buses.forEach(b=>{if(b.stale)return;b.t+=b.dir*0.006;if(b.t>1||b.t<0){b.dir*=-1;b.t=Math.max(0,Math.min(1,b.t))}b.seen=Date.now();b.speed=Math.max(15,Math.min(62,b.speed+Math.round(Math.random()*6-3)))});
+N.ago=ms=>{const s=Math.round((Date.now()-ms)/1000);return s<90?s+'s ago':Math.round(s/60)+' min ago'};
+const now=Date.now(),m=x=>now-x*60000;
+const seed=[['Driver SOS','CRITICAL','KNP-103','RESPONDING',6,'Op. Neha'],['GPS signal loss','HIGH','KNP-105','NEW',14,''],['Route deviation','MEDIUM','KNP-107','ACKNOWLEDGED',32,'Op. Arjun'],['Overspeed warning','MEDIUM','KNP-102','RESOLVED',95,'Op. Neha'],['Unexpected stop','LOW','KNP-109','CLOSED',180,'Op. Arjun'],['Suspected collision','CRITICAL','KNP-110','RESOLVED',260,'Op. Neha'],['Route deviation','MEDIUM','KNP-104','CLOSED',400,'Op. Arjun'],['Overspeed warning','HIGH','KNP-108','CLOSED',520,'Op. Neha'],['GPS signal loss','HIGH','KNP-110','CLOSED',700,'Op. Arjun'],['Driver SOS','CRITICAL','KNP-106','CLOSED',900,'Op. Neha']];
+N.load=()=>{try{const s=JSON.parse(localStorage.getItem('nx_inc'));if(s)return s}catch(e){}return seed.map((s,i)=>({id:'INC-'+(1040+seed.length-i),type:s[0],sev:s[1],bus:s[2],status:s[3],at:m(s[4]),op:s[5],ev:[{t:m(s[4]),x:'Incident created (automated rule or SOS)'}].concat(s[3]!='NEW'?[{t:m(s[4]-1),x:'Acknowledged by '+s[5]}]:[])}))};
+N.inc=N.load();N.save=()=>{try{localStorage.setItem('nx_inc',JSON.stringify(N.inc))}catch(e){}};
+N.next={NEW:['ACKNOWLEDGED','Acknowledge'],ACKNOWLEDGED:['RESPONDING','Start response'],RESPONDING:['RESOLVED','Resolve'],RESOLVED:['CLOSED','Close']};
+N.advance=id=>{const i=N.inc.find(x=>x.id==id),n=N.next[i.status];if(!n||!confirm(n[1]+' '+id+'?'))return;i.status=n[0];if(!i.op)i.op='Op. Neha';i.ev.push({t:Date.now(),x:n[1]+' – status '+n[0]+' (by Op. Neha)'});N.save()};
+N.note=(id,x)=>{if(!x.trim())return;N.inc.find(i=>i.id==id).ev.push({t:Date.now(),x:'Note: '+x});N.save()};
+N.escalate=id=>{const i=N.inc.find(x=>x.id==id),o=['LOW','MEDIUM','HIGH','CRITICAL'];if(!confirm('Escalate '+id+'?'))return;i.sev=o[Math.min(3,o.indexOf(i.sev)+1)];i.ev.push({t:Date.now(),x:'Escalated to supervisor – severity '+i.sev});N.save()};
+N.sos=()=>{const b=N.buses[Math.floor(Math.random()*12)];N.inc.unshift({id:'INC-'+(1041+N.inc.length),type:'Driver SOS (SIMULATION)',sev:'CRITICAL',bus:b.id,status:'NEW',at:Date.now(),op:'',ev:[{t:Date.now(),x:'Simulated SOS received. Latest location attached. No real emergency service contacted.'}]});N.save()};
+N.reset=()=>{localStorage.removeItem('nx_inc');location.reload()};
+N.status=b=>N.inc.some(i=>i.bus==b.id&&['NEW','ACKNOWLEDGED','RESPONDING'].includes(i.status)&&i.sev=='CRITICAL')?'INC':(Date.now()-b.seen>60000?'STALE':'LIVE');
+N.active=()=>N.inc.filter(i=>!['RESOLVED','CLOSED'].includes(i.status));
+N.shell=(page,title)=>{const nav=[['index','Overview'],['fleet','Live Fleet'],['incidents','Incident Command'],['routes','Route Intelligence'],['trips','Trip History'],['drivers','Drivers & Vehicles'],['analytics','Safety Analytics']];
+root.innerHTML=`<aside class=side><div class=logo>NEXUS<b>TRANSIT</b></div><nav>${nav.map(([f,l])=>`<a href=${f}.html class="${f==page?'on':''}">${l}</a>`).join('')}</nav><div class=who>Control Room Operator<br><small>Demo user · Kanpur region</small></div></aside><div class=main><header><h1>${title}</h1><span class=demo>DEMO ENVIRONMENT · simulated data</span><span id=clock class=mono></span></header><section id=app></section></div>`;
+const c=()=>clock.textContent=new Date().toLocaleTimeString('en-IN');c();setInterval(c,1000)};
+N.map=(el,fit)=>{const mp=L.map(el).setView([26.465,80.31],12);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(mp);
+N.routes.forEach(r=>{L.polyline(r.pts,{color:r.c,weight:3,opacity:.6}).addTo(mp);r.pts.forEach((p,i)=>L.circleMarker(p,{radius:3,color:r.c}).addTo(mp).bindTooltip(r.id+' stop '+(i+1)))});
+mp.mk={};N.buses.forEach(b=>{mp.mk[b.id]=L.marker(N.pos(b),{icon:L.divIcon({className:'',html:'<div class=bm></div>',iconSize:[16,16]})}).addTo(mp)});return mp};
+N.upd=(mp,sel)=>N.buses.forEach(b=>{const k=mp.mk[b.id],col={LIVE:'#38D996',STALE:'#FFB547',INC:'#FF4D67'}[N.status(b)];k.setLatLng(N.pos(b));k.setIcon(L.divIcon({className:'',html:`<div class=bm style="background:${col};${sel==b.id?'transform:scale(1.5)':''}"></div>`,iconSize:[16,16]}));k.off('click').on('click',()=>sel&&window.pick&&pick(b.id))});
+N.busRow=b=>{const s=N.status(b);return`<div class="row ${window.selId==b.id?'sel':''}" onclick="pick('${b.id}')"><span class="dot ${s}"></span><div class=gr><b>${b.id}</b> <small>${b.reg} · ${b.driver}</small><small>${b.route.id} · ${s=='STALE'?'<span style=color:var(--wa)>STALE – last fix '+N.ago(b.seen)+'</span>':Math.round(b.speed)+' km/h · '+N.ago(b.seen)}</small></div></div>`};
+N.incRow=i=>`<a href="incidents.html#${i.id}" class=row><span class="badge ${i.sev}">${i.sev}</span><div class=gr><b>${i.type}</b><small>${i.id} · ${i.bus} · ${N.ago(i.at)}</small></div><small>${i.status}</small></a>`;

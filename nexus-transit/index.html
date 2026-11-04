@@ -1,0 +1,10 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>NEXUS TRANSIT</title><link rel=stylesheet href=style.css><link rel=stylesheet href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"><script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script></head><body><div id=root></div><script src=app.js></script><script>
+N.shell('index','Overview');window.selId=null;
+app.innerHTML='<div class=kpis id=k></div><div class=g2><div class=card><h3>Live fleet · Kanpur</h3><div id=m class=map></div></div><div class=card><h3>Active incidents</h3><div class=list id=fi></div><a class=btn href=incidents.html style="display:block;text-align:center;margin-top:10px">Open Incident Command</a></div></div><div class=eq><div class=card><h3>Fleet status</h3><div class=list id=fl></div></div><div class=card><h3>Selected bus</h3><div id=d style="color:var(--mu)">Click a bus on the map or list.</div></div></div>';
+const mp=N.map('m');
+window.pick=id=>{selId=id;const b=N.buses.find(x=>x.id==id);mp.setView(N.pos(b),14);r()};
+function r(){const s=N.buses.map(N.status),a=N.active();k.innerHTML=[['Total fleet (demo)',N.buses.length],['Active trips',N.buses.length],['Online',s.filter(x=>x!='STALE').length],['Tracking stale',s.filter(x=>x=='STALE').length],['Active incidents',a.length],['Critical',a.filter(i=>i.sev=='CRITICAL').length]].map(x=>'<div class="card kpi"><b>'+x[1]+'</b><span>'+x[0]+'</span></div>').join('');
+fi.innerHTML=a.map(N.incRow).join('')||'No active incidents';fl.innerHTML=N.buses.map(N.busRow).join('');N.upd(mp,selId);
+const b=N.buses.find(x=>x.id==selId);if(b){const p=N.pos(b);d.innerHTML='<b>'+b.id+'</b> · '+b.reg+'<br>Driver: '+b.driver+'<br>Route: '+b.route.name+'<br>Speed: '+Math.round(b.speed)+' km/h (limit '+b.route.lim+')<br>Status: '+N.status(b)+'<br><span class=mono>'+p[0].toFixed(4)+', '+p[1].toFixed(4)+'</span><br>Last GPS update: '+N.ago(b.seen)}}
+r();setInterval(()=>{N.tick();r()},3000);
+</script></body></html>
