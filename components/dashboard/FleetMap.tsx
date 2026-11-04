@@ -714,7 +714,7 @@ export function FleetMap({
       )}
 
       {/* Floating Tactical Tools (Top Right) */}
-      <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
+      <div className="absolute top-2.5 right-2.5 sm:top-4 sm:right-4 z-10 flex flex-col gap-1.5 sm:gap-2">
         {passengerMode && singleBusId && (
           <button
             onClick={() => {
@@ -723,7 +723,7 @@ export function FleetMap({
                 mapInstanceRef.current.setView([b.lat, b.lng], 15, { animate: true });
               }
             }}
-            className="p-2.5 rounded-lg bg-nexus-cyan/20 hover:bg-nexus-cyan/30 text-nexus-cyan border border-nexus-cyan/50 shadow-glow backdrop-blur-md transition-colors"
+            className="p-2 sm:p-2.5 rounded-lg bg-nexus-cyan/20 hover:bg-nexus-cyan/30 text-nexus-cyan border border-nexus-cyan/50 shadow-glow backdrop-blur-md transition-colors"
             title="Recenter Map on My Bus"
           >
             <LocateFixed className="w-4 h-4" />
@@ -732,7 +732,7 @@ export function FleetMap({
 
         <button
           onClick={fitToFleet}
-          className="p-2.5 rounded-lg bg-bg-elevated/90 hover:bg-bg-hover text-tx-secondary hover:text-nexus-cyan border border-border shadow-xl backdrop-blur-md transition-colors"
+          className="p-2 sm:p-2.5 rounded-lg bg-bg-elevated/90 hover:bg-bg-hover text-tx-secondary hover:text-nexus-cyan border border-border shadow-xl backdrop-blur-md transition-colors"
           title={passengerMode ? "Fit Route Corridor" : "Fit bounds to active fleet"}
         >
           <Maximize2 className="w-4 h-4" />
@@ -740,7 +740,7 @@ export function FleetMap({
 
         <button
           onClick={() => setShowGeofences(!showGeofences)}
-          className={`p-2.5 rounded-lg border shadow-xl backdrop-blur-md transition-colors ${
+          className={`p-2 sm:p-2.5 rounded-lg border shadow-xl backdrop-blur-md transition-colors ${
             showGeofences
               ? "bg-nexus-cyan/20 text-nexus-cyan border-nexus-cyan/50 shadow-glow"
               : "bg-bg-elevated/90 text-tx-muted border-border hover:text-tx-primary"
@@ -754,7 +754,7 @@ export function FleetMap({
         <div className="relative">
           <button
             onClick={() => setShowLayerMenu(!showLayerMenu)}
-            className="p-2.5 rounded-lg bg-bg-elevated/90 hover:bg-bg-hover text-tx-secondary hover:text-nexus-cyan border border-border shadow-xl backdrop-blur-md transition-colors"
+            className="p-2 sm:p-2.5 rounded-lg bg-bg-elevated/90 hover:bg-bg-hover text-tx-secondary hover:text-nexus-cyan border border-border shadow-xl backdrop-blur-md transition-colors"
             title="Switch Map Tiles Provider"
           >
             <Radio className="w-4 h-4" />
@@ -818,15 +818,13 @@ export function FleetMap({
 
       {/* Top Banner: Passenger Mode or Operator Engine Status */}
       {passengerMode ? (
-        <div className="absolute top-4 left-4 z-10 px-3.5 py-2 rounded-xl bg-bg-surface/95 border border-nexus-safe/50 backdrop-blur-md text-[11px] font-mono shadow-2xl flex items-center gap-2.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-nexus-safe animate-pulse shadow-glow-safe" />
-          <span className="font-bold text-tx-primary">LIVE PASSENGER ONBOARD TRACK</span>
-          <span className="text-tx-muted">&bull;</span>
-          <span className="text-nexus-cyan font-bold">{singleBusId}</span>
+        <div className="absolute top-2.5 left-2.5 sm:top-4 sm:left-4 z-10 px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-bg-surface/95 border border-nexus-safe/50 backdrop-blur-md text-[10px] sm:text-[11px] font-mono shadow-2xl flex items-center gap-1.5 sm:gap-2.5 max-w-[calc(100%-120px)] truncate">
+          <span className="w-2 h-2 rounded-full bg-nexus-safe animate-pulse shadow-glow-safe shrink-0" />
+          <span className="font-bold text-tx-primary truncate">ONBOARD {singleBusId}</span>
           {buses.find((b) => b.id === singleBusId)?.scheduleStatus?.nextStop && (
             <>
               <span className="text-tx-muted hidden sm:inline">&bull;</span>
-              <span className="text-tx-secondary hidden sm:inline">
+              <span className="text-tx-secondary hidden sm:inline truncate">
                 Next: <strong className="text-white">{buses.find((b) => b.id === singleBusId)?.scheduleStatus?.nextStop}</strong>
               </span>
             </>
@@ -907,15 +905,17 @@ export function FleetMap({
 
       {/* Real-time Status Counter Pill (Bottom Left) */}
       {passengerMode ? (
-        <div className="absolute bottom-4 left-4 z-10 px-3 py-1.5 rounded-xl bg-bg-surface/95 border border-border/80 backdrop-blur-md text-[11px] font-mono shadow-xl flex items-center gap-3 text-tx-secondary">
+        <div className="absolute bottom-2.5 left-2.5 sm:bottom-4 sm:left-4 z-10 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-bg-surface/95 border border-border/80 backdrop-blur-md text-[10px] sm:text-[11px] font-mono shadow-xl flex items-center gap-2 sm:gap-3 text-tx-secondary">
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-nexus-safe shadow-glow-safe" />
             <span className="text-tx-primary font-bold">GPS ACTIVE</span>
           </div>
           <span>&bull;</span>
           <span>SPEED: <strong className="text-white">{buses.find((b) => b.id === singleBusId)?.speedKmh || 0} km/h</strong></span>
-          <span>&bull;</span>
-          <span>CORRIDOR: <strong className="text-nexus-cyan">{buses.find((b) => b.id === singleBusId)?.routeName?.split("–")[0]?.trim() || "Active"}</strong></span>
+          <span className="hidden xs:inline">&bull;</span>
+          <span className="hidden xs:inline truncate max-w-[130px]">
+            <strong className="text-nexus-cyan">{buses.find((b) => b.id === singleBusId)?.routeName?.split("–")[0]?.trim() || "Active"}</strong>
+          </span>
         </div>
       ) : (
         <div className="absolute bottom-4 left-4 z-10 px-3 py-2 rounded-lg bg-bg-surface/95 border border-border/80 backdrop-blur-md text-[11px] font-mono flex items-center gap-4 text-tx-secondary shadow-xl">

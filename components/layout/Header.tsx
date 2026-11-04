@@ -15,6 +15,7 @@ import {
   ArrowLeftRight,
   Shield,
   Users,
+  Bus,
 } from "lucide-react";
 import { useFleet } from "@/lib/context/FleetContext";
 import { useAuth } from "@/lib/context/AuthContext";
@@ -117,18 +118,21 @@ export function Header() {
 
   return (
     <>
-      <header className="h-16 bg-bg-surface/90 backdrop-blur-md border-b border-border px-6 flex items-center justify-between sticky top-0 z-30">
+      <header className="h-14 sm:h-16 bg-bg-surface/90 backdrop-blur-md border-b border-border px-3 sm:px-6 flex items-center justify-between sticky top-0 z-30">
         {/* Title & Region */}
-        <div className="flex items-center gap-4">
-          <div>
-            <h1 className="text-sm font-semibold text-tx-primary tracking-wide">
+        <div className="flex items-center gap-2.5 sm:gap-4 min-w-0">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-nexus-cyan/20 to-nexus-blue/20 border border-nexus-cyan/40 flex md:hidden items-center justify-center text-nexus-cyan shadow-glow shrink-0">
+            <Bus className="w-4 h-4 animate-pulse" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-xs sm:text-sm font-semibold text-tx-primary tracking-wide truncate max-w-[150px] sm:max-w-none">
               {getPageTitle(pathname)}
             </h1>
-            <div className="flex items-center gap-2 text-[11px] text-tx-secondary font-mono">
-              <MapPin className="w-3 h-3 text-nexus-cyan" />
-              <span>Region: Kanpur Urban Corridor (UP-78)</span>
-              <span className="text-border-bright">•</span>
-              <span className="text-nexus-safe flex items-center gap-1 font-semibold">
+            <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] text-tx-secondary font-mono truncate">
+              <MapPin className="w-3 h-3 text-nexus-cyan shrink-0 hidden sm:inline" />
+              <span className="truncate">Kanpur Urban (UP-78)</span>
+              <span className="text-border-bright hidden sm:inline">•</span>
+              <span className="text-nexus-safe hidden sm:flex items-center gap-1 font-semibold shrink-0">
                 <Wifi className="w-3 h-3" /> LINK ACTIVE
               </span>
             </div>
@@ -136,7 +140,7 @@ export function Header() {
         </div>
 
         {/* Center: Interactive Search Trigger & Demo indicator */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <div
             onClick={() => setCommandPaletteOpen(true)}
             className="relative w-64 hidden lg:flex items-center justify-between px-3 py-1.5 rounded-lg bg-bg-elevated hover:bg-bg-hover border border-border hover:border-nexus-cyan/50 text-xs text-tx-muted cursor-pointer transition-all shadow-sm"
@@ -155,7 +159,7 @@ export function Header() {
             DEMO ENVIRONMENT &bull; SIMULATED TELEMETRY
           </div>
 
-          {/* Quick Role Switcher Pill in Header */}
+          {/* Quick Role Switcher Pill in Header (Desktop) */}
           <button
             onClick={() => switchRole(userRole === "OPERATOR" ? "USER" : "OPERATOR")}
             className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-mono font-bold transition-all ${
@@ -175,8 +179,22 @@ export function Header() {
           </button>
         </div>
 
-        {/* Right Tools: Clock, Emergency Console Button, Notifications */}
-        <div className="flex items-center gap-3">
+        {/* Right Tools: Role Switcher (Mobile), Clock, Emergency Console Button, Notifications */}
+        <div className="flex items-center gap-1.5 sm:gap-3">
+          {/* Mobile Role Switcher Pill */}
+          <button
+            onClick={() => switchRole(userRole === "OPERATOR" ? "USER" : "OPERATOR")}
+            className={`flex md:hidden items-center gap-1 px-2 py-1 rounded-lg border text-[10px] font-mono font-bold transition-all ${
+              userRole === "OPERATOR"
+                ? "bg-nexus-cyan/15 text-nexus-cyan border-nexus-cyan/40"
+                : "bg-nexus-safe/15 text-nexus-safe border-nexus-safe/40"
+            }`}
+            title="Switch Mode"
+          >
+            <span>{userRole === "OPERATOR" ? "OP" : "USER"}</span>
+            <ArrowLeftRight className="w-2.5 h-2.5 opacity-70" />
+          </button>
+
           {/* Live Clock */}
           <div className="hidden sm:flex flex-col items-end pr-2 font-mono">
             <div className="text-xs text-tx-primary font-bold tracking-wider flex items-center gap-1.5">
@@ -189,18 +207,18 @@ export function Header() {
           {/* Emergency Trigger Button */}
           <button
             onClick={() => setEmergencyModalOpen(true)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 border transition-all font-mono ${
+            className={`p-1.5 sm:px-3 sm:py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 border transition-all font-mono ${
               criticalIncidentsCount > 0
                 ? "bg-nexus-critical text-white border-nexus-critical shadow-glow-critical animate-pulse font-bold"
                 : "bg-nexus-critical/15 hover:bg-nexus-critical/25 text-nexus-critical border-nexus-critical/40 hover:border-nexus-critical"
             }`}
             title="Open Emergency Dispatch Console / Trigger Simulated Driver SOS"
           >
-            <Siren className="w-4 h-4" />
+            <Siren className="w-4 h-4 shrink-0" />
             <span className="hidden md:inline">Emergency Console</span>
             {criticalIncidentsCount > 0 && (
               <span className="px-1.5 py-0.2 rounded bg-black/40 text-[10px] font-mono font-bold">
-                {criticalIncidentsCount} ACTIVE
+                {criticalIncidentsCount}
               </span>
             )}
           </button>
@@ -208,7 +226,7 @@ export function Header() {
           {/* Notifications Button */}
           <button
             onClick={() => setNotificationDrawerOpen(true)}
-            className="relative p-2 rounded-lg bg-bg-elevated hover:bg-bg-hover text-tx-secondary hover:text-tx-primary border border-border transition-colors"
+            className="relative p-1.5 sm:p-2 rounded-lg bg-bg-elevated hover:bg-bg-hover text-tx-secondary hover:text-tx-primary border border-border transition-colors"
             title="View Notifications"
           >
             <Bell className="w-4 h-4" />

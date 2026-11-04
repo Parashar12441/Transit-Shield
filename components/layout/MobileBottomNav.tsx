@@ -18,6 +18,13 @@ import {
   Users,
 } from "lucide-react";
 
+interface NavTab {
+  href: string;
+  label: string;
+  icon: any;
+  badge?: number;
+}
+
 export function MobileBottomNav() {
   const pathname = usePathname();
   const { userRole, switchRole } = useAuth();
@@ -25,14 +32,14 @@ export function MobileBottomNav() {
 
   const isUser = userRole === "USER";
 
-  const userTabs = [
+  const userTabs: NavTab[] = [
     { href: "/", label: "My Ride", icon: Bus },
     { href: "/map", label: "Live Map", icon: Map },
     { href: "/routes", label: "Timetable", icon: Clock },
     { href: "/trips", label: "Passes", icon: CreditCard },
   ];
 
-  const operatorTabs = [
+  const operatorTabs: NavTab[] = [
     { href: "/", label: "Overview", icon: LayoutDashboard },
     { href: "/map", label: "Fleet Map", icon: Map },
     { href: "/fleet", label: "Vehicles", icon: Radio },

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useAuth } from "@/lib/context/AuthContext";
 import { useFleet } from "@/lib/context/FleetContext";
@@ -35,13 +35,19 @@ import {
   Copy,
   ExternalLink,
   Info,
+  Maximize2,
+  Minimize2,
+  Navigation,
+  LocateFixed,
+  HelpCircle,
+  PhoneCall,
 } from "lucide-react";
 
 // Dynamically import FleetMap with SSR disabled
 const FleetMap = dynamic(() => import("@/components/dashboard/FleetMap"), {
   ssr: false,
   loading: () => (
-    <div className="h-[460px] w-full rounded-2xl border border-border bg-bg-surface flex flex-col items-center justify-center text-xs text-tx-muted font-mono animate-pulse gap-2">
+    <div className="h-[320px] sm:h-[420px] w-full rounded-2xl border border-border bg-bg-surface flex flex-col items-center justify-center text-xs text-tx-muted font-mono animate-pulse gap-2">
       <div className="w-8 h-8 rounded-full border-2 border-nexus-safe border-t-transparent animate-spin" />
       <span>CONNECTING PASSENGER SATELLITE ROAD TELEMETRY...</span>
     </div>
@@ -66,8 +72,11 @@ export function PassengerJourneyView() {
   const [stopRequested, setStopRequested] = useState<boolean>(false);
   const [showQrModal, setShowQrModal] = useState<boolean>(false);
   const [copiedShare, setCopiedShare] = useState<boolean>(false);
-  const [sosActive, setSosActive] = useState<boolean>(false);
   const [sosConfirmed, setSosConfirmed] = useState<boolean>(false);
+  const [isMapExpanded, setIsMapExpanded] = useState<boolean>(false);
+  const [mobileTab, setMobileTab] = useState<"ALARM" | "TICKET" | "SAFETY" | "INFO">("ALARM");
+
+  const ribbonScrollRef = useRef<HTMLDivElement>(null);
 
   const activeBus: BusTelemetry = buses.find((b) => b.id === activeBusId) || defaultBus || buses[0];
   const activeRoute = routes.find((r) => r.id === activeBus.routeId) || matchedRoute || routes[0];
@@ -79,6 +88,15 @@ export function PassengerJourneyView() {
       setDestinationStop(activeRoute.stops[activeRoute.stops.length - 1].name);
     }
   }, [activeRoute, destinationStop]);
+
+  // Scroll active stop into view on the ribbon
+  const handleScrollToActiveStop = () => {
+    if (!ribbonScrollRef.current) return;
+    const activeEl = ribbonScrollRef.current.querySelector(".active-bus-stop-node");
+    if (activeEl) {
+      activeEl.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    }
+  };
 
   // Play stop bell chime using Web Audio API synthesis
   const handleRequestStop = () => {
@@ -125,47 +143,43 @@ export function PassengerJourneyView() {
       : 3;
 
   return (
-    <div className="space-y-5 animate-fade-in">
-      {/* 1. Commuter Header & Active Bus Switcher Bar */}
-      <div className="p-4 sm:p-5 rounded-2xl border border-nexus-safe/40 bg-gradient-to-r from-bg-surface via-bg-elevated to-bg-surface shadow-2xl relative overflow-hidden">
+    <div className="space-y-3.5 sm:space-y-5 animate-fade-in pb-4">
+      {/* 1. Mobile-Optimized Commuter Header */}
+      <div className="p-3 sm:p-5 rounded-2xl border border-nexus-safe/40 bg-gradient-to-r from-bg-surface via-bg-elevated to-bg-surface shadow-2xl relative overflow-hidden">
         <div className="absolute right-0 top-0 w-80 h-full bg-nexus-safe/5 blur-3xl pointer-events-none" />
 
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 relative z-10">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-xl bg-nexus-safe/20 border border-nexus-safe/50 flex items-center justify-center text-nexus-safe shadow-glow-safe shrink-0">
-              <Bus className="w-6 h-6 animate-pulse" />
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 relative z-10">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-nexus-safe/20 border border-nexus-safe/50 flex items-center justify-center text-nexus-safe shadow-glow-safe shrink-0">
+              <Bus className="w-5 h-5 sm:w-6 sm:h-6 animate-pulse" />
             </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-nexus-safe/20 text-nexus-safe border border-nexus-safe/40 font-bold uppercase tracking-wider">
-                  Commuter Live Journey
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <span className="text-[9px] sm:text-[10px] font-mono px-2 py-0.5 rounded bg-nexus-safe/20 text-nexus-safe border border-nexus-safe/40 font-bold uppercase tracking-wider">
+                  Live Commuter
                 </span>
-                <span className="text-xs font-mono text-tx-muted">Pass ID: {currentUser?.badgeOrId || "KNP-COMM-7702"}</span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-nexus-cyan/15 text-nexus-cyan border border-nexus-cyan/30 font-semibold">
-                  1 Bus Tracking Mode
+                <span className="text-[10px] sm:text-xs font-mono text-tx-muted truncate">
+                  Pass: {currentUser?.badgeOrId || "KNP-COMM-7702"}
                 </span>
               </div>
-              <h2 className="text-lg font-bold text-tx-primary mt-1 font-mono">
-                Welcome Onboard, {currentUser?.name || "Commuter"}
+              <h2 className="text-base sm:text-lg font-bold text-tx-primary mt-0.5 font-mono truncate">
+                {currentUser?.name || "Commuter"}
               </h2>
-              <p className="text-xs text-tx-secondary">
-                You are currently tracking your travel on{" "}
-                <span className="text-nexus-cyan font-bold font-mono">
-                  Bus {activeBus.id} &bull; {activeRoute.code}: {activeRoute.name.split("–")[0].trim()}
-                </span>
+              <p className="text-[11px] sm:text-xs text-tx-secondary truncate">
+                Riding: <span className="text-nexus-cyan font-bold font-mono">{activeBus.id} &bull; {activeRoute.code}</span>
               </p>
             </div>
           </div>
 
-          {/* Quick Bus Selector & Role Switcher */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs font-mono w-full lg:w-auto justify-start lg:justify-end">
-            <div className="flex items-center gap-1.5 p-1 px-2 rounded-xl bg-bg-surface/90 border border-border">
-              <span className="text-[10px] text-tx-muted uppercase font-bold">Travelling On:</span>
+          {/* Quick Bus Selector Dropdown */}
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+            <div className="flex items-center gap-1.5 p-1 px-2 rounded-xl bg-bg-surface/90 border border-border flex-1 sm:flex-initial">
+              <span className="text-[9px] font-mono text-tx-muted uppercase font-bold shrink-0">Bus:</span>
               <select
                 value={activeBusId}
                 onChange={(e) => setActiveBusId(e.target.value)}
-                className="bg-bg-elevated border border-border/80 text-nexus-cyan font-bold rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:border-nexus-cyan"
-                title="Select which bus you are currently riding"
+                className="bg-bg-elevated border border-border/80 text-nexus-cyan font-bold rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-nexus-cyan w-full sm:w-auto"
+                title="Select active bus"
               >
                 {buses.map((bus) => (
                   <option key={bus.id} value={bus.id}>
@@ -177,156 +191,284 @@ export function PassengerJourneyView() {
 
             <button
               onClick={() => switchRole("OPERATOR")}
-              className="py-2 px-3 rounded-xl bg-nexus-cyan/15 hover:bg-nexus-cyan/25 text-nexus-cyan border border-nexus-cyan/40 font-bold flex items-center gap-1.5 transition-all text-xs"
-              title="Switch to Full Fleet Operator Console"
+              className="py-1.5 px-2.5 rounded-xl bg-nexus-cyan/15 hover:bg-nexus-cyan/25 text-nexus-cyan border border-nexus-cyan/40 font-bold flex items-center gap-1 transition-all text-xs shrink-0"
+              title="Switch to Operator Console"
             >
               <ArrowLeftRight className="w-3.5 h-3.5" />
-              <span>Operator Mode</span>
+              <span className="hidden xs:inline">Operator</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* 2. Onboard Live Ride Hero HUD */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
-        {/* Next Stop Card */}
-        <div className="p-4 rounded-xl border border-nexus-safe/40 bg-bg-surface shadow-xl relative overflow-hidden flex flex-col justify-between">
+      {/* 2. Mobile Thumb-Zone Quick Action Hub */}
+      <div className="p-2.5 sm:p-3 rounded-2xl bg-bg-surface border border-nexus-cyan/30 shadow-xl space-y-2">
+        <div className="flex items-center justify-between px-1">
+          <span className="text-[10px] font-mono font-bold text-tx-secondary uppercase tracking-wider flex items-center gap-1.5">
+            <Zap className="w-3.5 h-3.5 text-nexus-cyan" />
+            Passenger Quick Controls
+          </span>
+          <span className="text-[9px] font-mono text-nexus-safe font-semibold">
+            1-TAP ACTIONS
+          </span>
+        </div>
+
+        <div className="grid grid-cols-4 gap-2">
+          {/* Action 1: Stop Bell */}
+          <button
+            onClick={handleRequestStop}
+            disabled={stopRequested}
+            className={`py-2.5 px-1.5 rounded-xl font-bold font-mono text-xs flex flex-col items-center justify-center gap-1 transition-all shadow-md active:scale-95 ${
+              stopRequested
+                ? "bg-nexus-safe text-black shadow-glow-safe"
+                : "bg-nexus-cyan hover:bg-nexus-cyan/90 text-black shadow-glow"
+            }`}
+          >
+            <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="text-[10px] sm:text-[11px] leading-tight text-center truncate w-full">
+              {stopRequested ? "BELL RUNG" : "STOP BELL"}
+            </span>
+          </button>
+
+          {/* Action 2: Show Ticket QR */}
+          <button
+            onClick={() => setShowQrModal(true)}
+            className="py-2.5 px-1.5 rounded-xl bg-bg-elevated hover:bg-bg-hover text-tx-primary border border-border hover:border-nexus-cyan/40 font-bold font-mono text-xs flex flex-col items-center justify-center gap-1 transition-all active:scale-95 shadow-md"
+          >
+            <QrCode className="w-4 h-4 sm:w-5 sm:h-5 text-nexus-cyan" />
+            <span className="text-[10px] sm:text-[11px] leading-tight text-center truncate w-full">QR TICKET</span>
+          </button>
+
+          {/* Action 3: Share Ride */}
+          <button
+            onClick={handleShareRide}
+            className="py-2.5 px-1.5 rounded-xl bg-bg-elevated hover:bg-bg-hover text-tx-primary border border-border hover:border-nexus-safe/40 font-bold font-mono text-xs flex flex-col items-center justify-center gap-1 transition-all active:scale-95 shadow-md"
+          >
+            {copiedShare ? (
+              <>
+                <Check className="w-4 h-4 sm:w-5 sm:h-5 text-nexus-safe" />
+                <span className="text-[10px] sm:text-[11px] text-nexus-safe leading-tight text-center truncate w-full">COPIED!</span>
+              </>
+            ) : (
+              <>
+                <Share2 className="w-4 h-4 sm:w-5 sm:h-5 text-nexus-safe" />
+                <span className="text-[10px] sm:text-[11px] leading-tight text-center truncate w-full">SHARE ETA</span>
+              </>
+            )}
+          </button>
+
+          {/* Action 4: Passenger SOS */}
+          <button
+            onClick={() => {
+              setSosConfirmed(true);
+              setTimeout(() => setSosConfirmed(false), 5000);
+            }}
+            className={`py-2.5 px-1.5 rounded-xl font-bold font-mono text-xs flex flex-col items-center justify-center gap-1 transition-all shadow-md active:scale-95 ${
+              sosConfirmed
+                ? "bg-nexus-critical text-white shadow-glow-critical animate-pulse"
+                : "bg-nexus-critical/15 hover:bg-nexus-critical/25 text-nexus-critical border border-nexus-critical/40"
+            }`}
+          >
+            <ShieldAlert className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="text-[10px] sm:text-[11px] leading-tight text-center truncate w-full">
+              {sosConfirmed ? "SENT!" : "SOS"}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* 3. Real-Time Next Stop & Ride Telemetry HUD */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
+        {/* Next Stop Primary Card */}
+        <div className="p-3.5 sm:p-4 rounded-xl border border-nexus-safe/50 bg-gradient-to-br from-bg-surface to-bg-elevated shadow-xl relative overflow-hidden flex flex-col justify-between">
           <div className="flex items-center justify-between text-xs font-mono text-tx-muted">
             <span className="flex items-center gap-1.5 font-bold uppercase text-[10px] text-nexus-safe">
               <span className="w-2 h-2 rounded-full bg-nexus-safe animate-pulse" />
-              Next Station
+              Next Stop
             </span>
-            <span className="text-tx-secondary text-[10px]">
-              {schedule?.isDwellingAtStop ? "BOARDING NOW" : "IN TRANSIT"}
+            <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded font-mono ${
+              schedule?.isDwellingAtStop ? "bg-nexus-warning/20 text-nexus-warning" : "bg-nexus-safe/20 text-nexus-safe"
+            }`}>
+              {schedule?.isDwellingAtStop ? "AT STATION" : "IN TRANSIT"}
             </span>
           </div>
+
           <div className="my-2">
-            <div className="text-lg font-bold text-tx-primary font-mono truncate">
+            <div className="text-base sm:text-lg font-bold text-white font-mono truncate">
               {schedule?.nextStop || "Upcoming Stop"}
             </div>
-            <div className="text-xs text-tx-secondary mt-0.5 flex items-center gap-1.5">
-              <span>Estimated Arrival:</span>
-              <strong className="text-nexus-safe font-mono text-sm">
+            <div className="text-xs text-tx-secondary mt-1 flex items-baseline gap-2">
+              <span>Arrival:</span>
+              <span className="text-nexus-safe font-mono font-bold text-lg">
                 ~{schedule?.etaNextStopMin || 2} min
-              </strong>
+              </span>
+              <span className="text-tx-muted text-[11px] font-mono">(&plusmn;450m)</span>
             </div>
           </div>
-          <div className="text-[10px] font-mono text-tx-muted border-t border-border/80 pt-2 flex items-center justify-between">
-            <span>Previous: {schedule?.currentOrPrevStop || "Terminal"}</span>
-            <span className="text-nexus-cyan">Distance: ~450m</span>
+
+          <div className="text-[10px] font-mono text-tx-muted border-t border-border/70 pt-2 flex items-center justify-between">
+            <span className="truncate">From: {schedule?.currentOrPrevStop || "Terminal"}</span>
+            <span className="text-nexus-cyan font-bold">{activeBus.speedKmh} km/h</span>
           </div>
         </div>
 
         {/* Bus & Driver Profile */}
-        <div className="p-4 rounded-xl border border-border bg-bg-surface shadow-xl flex flex-col justify-between">
+        <div className="p-3 sm:p-4 rounded-xl border border-border bg-bg-surface shadow-xl flex flex-col justify-between">
           <div className="flex items-center justify-between text-xs font-mono text-tx-muted">
             <span className="uppercase text-[10px] text-nexus-cyan font-bold">Vehicle & Pilot</span>
-            <span className="text-[10px] text-nexus-safe font-bold">e-Bus AC</span>
+            <span className="text-[10px] text-nexus-safe font-bold font-mono">e-Bus AC</span>
           </div>
-          <div className="my-2">
+          <div className="my-1.5">
             <div className="flex items-center gap-2">
-              <span className="text-lg font-bold text-tx-primary font-mono">{activeBus.id}</span>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-bg-elevated border border-border text-tx-secondary">
+              <span className="text-base sm:text-lg font-bold text-tx-primary font-mono">{activeBus.id}</span>
+              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-bg-elevated border border-border text-tx-secondary">
                 {activeBus.registration}
               </span>
             </div>
-            <div className="text-xs text-tx-secondary mt-1 flex items-center gap-1">
-              <span>Driver:</span>
-              <span className="text-tx-primary font-bold">{activeBus.driverName}</span>
-              <span className="text-yellow-400 text-[11px]">&bull; 4.9 &starf;</span>
+            <div className="text-xs text-tx-secondary mt-1 truncate">
+              Pilot: <strong className="text-tx-primary">{activeBus.driverName}</strong>
+              <span className="text-yellow-400 text-[11px] ml-1">&bull; 4.9 &starf;</span>
             </div>
           </div>
-          <div className="text-[10px] font-mono text-tx-muted border-t border-border/80 pt-2 flex items-center justify-between">
-            <span>Model: Tata Ultra 9/9m</span>
-            <span className="text-nexus-safe">Battery: {activeBus.batteryLevel || 84}%</span>
+          <div className="text-[10px] font-mono text-tx-muted border-t border-border/70 pt-2 flex items-center justify-between">
+            <span>Tata Ultra 9m</span>
+            <span className="text-nexus-safe font-bold">Battery: {activeBus.batteryLevel || 84}%</span>
           </div>
         </div>
 
         {/* Trip Timings & Schedule Adherence */}
-        <div className="p-4 rounded-xl border border-border bg-bg-surface shadow-xl flex flex-col justify-between">
+        <div className="p-3 sm:p-4 rounded-xl border border-border bg-bg-surface shadow-xl flex flex-col justify-between">
           <div className="flex items-center justify-between text-xs font-mono text-tx-muted">
-            <span className="uppercase text-[10px] text-tx-muted font-bold">Trip Timings</span>
+            <span className="uppercase text-[10px] text-tx-muted font-bold">Trip Timetable</span>
             <span className="text-[10px] text-nexus-safe font-bold font-mono">
-              {schedule?.scheduleAdherence === "ON_TIME" ? "ON SCHEDULE" : "ON SCHEDULE"}
+              ON TIME
             </span>
           </div>
-          <div className="my-2">
+          <div className="my-1.5">
             <div className="flex items-center justify-between text-xs font-mono">
               <div>
-                <span className="text-[10px] text-tx-muted block">DEPARTED</span>
-                <span className="text-sm font-bold text-tx-primary">
+                <span className="text-[9px] text-tx-muted block">DEPARTED</span>
+                <span className="text-xs sm:text-sm font-bold text-tx-primary">
                   {schedule?.currentTripDeparture || "09:30 AM"}
                 </span>
               </div>
               <div className="text-center text-tx-muted">&rarr;</div>
               <div className="text-right">
-                <span className="text-[10px] text-tx-muted block">EXP. DESTINATION</span>
-                <span className="text-sm font-bold text-nexus-cyan">
+                <span className="text-[9px] text-tx-muted block">EXP. DESTINATION</span>
+                <span className="text-xs sm:text-sm font-bold text-nexus-cyan">
                   {schedule?.currentTripArrival || "10:25 AM"}
                 </span>
               </div>
             </div>
           </div>
-          <div className="text-[10px] font-mono text-tx-muted border-t border-border/80 pt-2 flex items-center justify-between">
-            <span>Frequency: Every {schedule?.headwayMinutes || 15}m</span>
-            <span className="text-tx-secondary truncate max-w-[130px]">
-              End: {activeRoute.stops[activeRoute.stops.length - 1]?.name || "IIT Gate"}
+          <div className="text-[10px] font-mono text-tx-muted border-t border-border/70 pt-2 flex items-center justify-between">
+            <span>Interval: Every {schedule?.headwayMinutes || 15}m</span>
+            <span className="text-tx-secondary truncate max-w-[120px]">
+              End: {activeRoute.stops[activeRoute.stops.length - 1]?.name}
             </span>
           </div>
         </div>
 
         {/* Onboard Amenities & Speed */}
-        <div className="p-4 rounded-xl border border-border bg-bg-surface shadow-xl flex flex-col justify-between">
+        <div className="p-3 sm:p-4 rounded-xl border border-border bg-bg-surface shadow-xl flex flex-col justify-between">
           <div className="flex items-center justify-between text-xs font-mono text-tx-muted">
-            <span className="uppercase text-[10px] text-tx-muted font-bold">Cabin & Comfort</span>
+            <span className="uppercase text-[10px] text-tx-muted font-bold">Cabin Comfort</span>
             <span className="text-[10px] text-nexus-safe font-bold flex items-center gap-1">
-              <Wifi className="w-3 h-3" /> Free Wi-Fi
+              <Wifi className="w-3 h-3" /> 5G Wi-Fi
             </span>
           </div>
-          <div className="my-2 flex items-center justify-between">
+          <div className="my-1.5 flex items-center justify-between">
             <div>
-              <span className="text-[10px] text-tx-muted block">ROAD SPEED</span>
-              <span className="text-lg font-bold text-tx-primary font-mono">
-                {activeBus.speedKmh}{" "}
-                <span className="text-xs font-normal text-tx-muted">km/h</span>
+              <span className="text-[9px] text-tx-muted block">ROAD SPEED</span>
+              <span className="text-base sm:text-lg font-bold text-tx-primary font-mono">
+                {activeBus.speedKmh} <span className="text-xs font-normal text-tx-muted">km/h</span>
               </span>
             </div>
             <div className="text-right">
-              <span className="text-[10px] text-tx-muted block">CABIN TEMP</span>
-              <span className="text-lg font-bold text-nexus-cyan font-mono flex items-center justify-end gap-0.5">
+              <span className="text-[9px] text-tx-muted block">AC CLIMATE</span>
+              <span className="text-base sm:text-lg font-bold text-nexus-cyan font-mono flex items-center justify-end gap-0.5">
                 <Thermometer className="w-3.5 h-3.5" /> 21&deg;C
               </span>
             </div>
           </div>
-          <div className="text-[10px] font-mono text-tx-muted border-t border-border/80 pt-2 flex items-center justify-between">
+          <div className="text-[10px] font-mono text-tx-muted border-t border-border/70 pt-2 flex items-center justify-between">
             <span>Seats Free: ~16</span>
-            <span className="text-nexus-safe">CCTV Monitored</span>
+            <span className="text-nexus-safe">CCTV Active</span>
           </div>
         </div>
       </div>
 
-      {/* 3. Stop-by-Stop Route Progress Ribbon */}
-      <div className="p-4 rounded-xl border border-border bg-bg-surface shadow-xl space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Compass className="w-4 h-4 text-nexus-cyan" />
-            <span className="text-xs font-mono font-bold text-tx-primary uppercase tracking-wider">
-              Corridor Progress Ribbon &bull; {activeRoute.code}: {activeRoute.name}
+      {/* 4. Live Single-Bus Road Track Map */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between px-1">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="w-2 h-2 rounded-full bg-nexus-safe animate-pulse shrink-0" />
+            <span className="text-xs font-mono text-tx-secondary tracking-wider uppercase font-semibold truncate">
+              Live Track &bull; Bus {activeBus.id} on {activeRoute.code}
             </span>
           </div>
-          <div className="text-xs font-mono text-tx-muted flex items-center gap-3">
-            <span>Stops on Route: {stopsList.length}</span>
-            <span>&bull;</span>
-            <span className="text-nexus-cyan">Distance: {ROUTE_SCHEDULES[activeRoute.code]?.totalDistanceKm || 23} km</span>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsMapExpanded(!isMapExpanded)}
+              className="text-[10px] font-mono px-2 py-1 rounded-lg bg-bg-elevated border border-border text-nexus-cyan hover:text-white flex items-center gap-1 transition-colors"
+              title={isMapExpanded ? "Compact Map" : "Expand Map"}
+            >
+              {isMapExpanded ? (
+                <>
+                  <Minimize2 className="w-3 h-3" />
+                  <span>Compact</span>
+                </>
+              ) : (
+                <>
+                  <Maximize2 className="w-3 h-3" />
+                  <span>Expand</span>
+                </>
+              )}
+            </button>
+            <span className="text-[10px] font-mono text-nexus-cyan hidden sm:inline">
+              GPS BEACON 3s
+            </span>
           </div>
         </div>
 
-        {/* Horizontal Visual Stop Ribbon */}
-        <div className="overflow-x-auto pb-2 pt-1 scrollbar-thin">
+        <FleetMap
+          height={isMapExpanded ? "540px" : "330px"}
+          singleBusId={activeBus.id}
+          focusedRouteId={activeBus.routeId}
+          passengerMode={true}
+        />
+      </div>
+
+      {/* 5. Swipeable Stop-by-Stop Route Progress Ribbon */}
+      <div className="p-3 sm:p-4 rounded-xl border border-border bg-bg-surface shadow-xl space-y-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Compass className="w-4 h-4 text-nexus-cyan" />
+            <span className="text-xs font-mono font-bold text-tx-primary uppercase tracking-wider">
+              Route Stop Ribbon ({stopsList.length} Stops)
+            </span>
+          </div>
+
+          <button
+            onClick={handleScrollToActiveStop}
+            className="text-[10px] font-mono px-2 py-0.5 rounded bg-bg-elevated border border-border text-nexus-cyan hover:underline flex items-center gap-1"
+            title="Scroll horizontally to current bus location"
+          >
+            <LocateFixed className="w-3 h-3" />
+            <span>Find My Bus</span>
+          </button>
+        </div>
+
+        {/* Horizontal Touch-Friendly Stop Scroll Ribbon */}
+        <div
+          ref={ribbonScrollRef}
+          className="overflow-x-auto pb-2 pt-1 scrollbar-thin scroll-smooth"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
           <div className="flex items-center min-w-[700px] px-2">
             {stopsList.map((stop, idx) => {
-              const isPast =
-                currentStopIndex >= 0 && idx < currentStopIndex;
+              const isPast = currentStopIndex >= 0 && idx < currentStopIndex;
               const isCurrent =
                 schedule?.currentOrPrevStop === stop.name ||
                 (schedule?.nextStop === stop.name && !isPast);
@@ -334,7 +476,6 @@ export function PassengerJourneyView() {
 
               return (
                 <React.Fragment key={stop.name + idx}>
-                  {/* Connecting Polyline Segment */}
                   {idx > 0 && (
                     <div
                       className={`flex-1 h-1 transition-all ${
@@ -347,14 +488,15 @@ export function PassengerJourneyView() {
                     />
                   )}
 
-                  {/* Stop Node */}
                   <div
                     onClick={() => setDestinationStop(stop.name)}
-                    className="flex flex-col items-center group cursor-pointer relative shrink-0"
-                    title={`Click to set ${stop.name} as my deboarding stop`}
+                    className={`flex flex-col items-center group cursor-pointer relative shrink-0 ${
+                      isCurrent ? "active-bus-stop-node" : ""
+                    }`}
+                    title={`Tap to set ${stop.name} as drop-off destination`}
                   >
                     <div
-                      className={`w-6 h-6 rounded-full flex items-center justify-center transition-all text-[10px] font-mono font-bold ${
+                      className={`w-7 h-7 sm:w-6 sm:h-6 rounded-full flex items-center justify-center transition-all text-[10px] font-mono font-bold ${
                         isCurrent
                           ? "bg-nexus-cyan text-black ring-4 ring-nexus-cyan/30 shadow-glow scale-110"
                           : isPast
@@ -373,7 +515,7 @@ export function PassengerJourneyView() {
                       )}
                     </div>
 
-                    <div className="mt-1.5 text-center max-w-[85px]">
+                    <div className="mt-1 text-center max-w-[85px]">
                       <span
                         className={`text-[11px] block font-medium truncate ${
                           isCurrent
@@ -406,32 +548,66 @@ export function PassengerJourneyView() {
         </div>
       </div>
 
-      {/* 4. Live Map: Only Tracking This Bus on Its Corridor */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-nexus-safe animate-pulse" />
-            <span className="text-xs font-mono text-tx-secondary tracking-wider uppercase font-semibold">
-              Live Road Track &bull; Bus {activeBus.id} on {activeRoute.code}: {activeRoute.name.split("–")[0]}
-            </span>
-          </div>
-          <span className="text-[11px] font-mono text-nexus-cyan">
-            PASSENGER SATELLITE BEACON &bull; 3000ms
-          </span>
-        </div>
+      {/* 6. Mobile Tab Switcher for Tools (Phone Viewport Only) */}
+      <div className="flex lg:hidden items-center p-1 rounded-xl bg-bg-surface border border-border gap-1 shadow-lg">
+        <button
+          onClick={() => setMobileTab("ALARM")}
+          className={`flex-1 py-2 rounded-lg text-xs font-mono font-bold transition-all flex items-center justify-center gap-1.5 ${
+            mobileTab === "ALARM"
+              ? "bg-nexus-cyan text-black shadow-glow"
+              : "text-tx-secondary hover:text-tx-primary"
+          }`}
+        >
+          <BellRing className="w-3.5 h-3.5" />
+          <span>Alarm</span>
+        </button>
 
-        <FleetMap
-          height="460px"
-          singleBusId={activeBus.id}
-          focusedRouteId={activeBus.routeId}
-          passengerMode={true}
-        />
+        <button
+          onClick={() => setMobileTab("TICKET")}
+          className={`flex-1 py-2 rounded-lg text-xs font-mono font-bold transition-all flex items-center justify-center gap-1.5 ${
+            mobileTab === "TICKET"
+              ? "bg-nexus-cyan text-black shadow-glow"
+              : "text-tx-secondary hover:text-tx-primary"
+          }`}
+        >
+          <CreditCard className="w-3.5 h-3.5" />
+          <span>Pass</span>
+        </button>
+
+        <button
+          onClick={() => setMobileTab("SAFETY")}
+          className={`flex-1 py-2 rounded-lg text-xs font-mono font-bold transition-all flex items-center justify-center gap-1.5 ${
+            mobileTab === "SAFETY"
+              ? "bg-nexus-cyan text-black shadow-glow"
+              : "text-tx-secondary hover:text-tx-primary"
+          }`}
+        >
+          <ShieldAlert className="w-3.5 h-3.5" />
+          <span>Safety</span>
+        </button>
+
+        <button
+          onClick={() => setMobileTab("INFO")}
+          className={`flex-1 py-2 rounded-lg text-xs font-mono font-bold transition-all flex items-center justify-center gap-1.5 ${
+            mobileTab === "INFO"
+              ? "bg-nexus-cyan text-black shadow-glow"
+              : "text-tx-secondary hover:text-tx-primary"
+          }`}
+        >
+          <Info className="w-3.5 h-3.5" />
+          <span>Timetable</span>
+        </button>
       </div>
 
-      {/* 5. Passenger Interactive Options & Smart Travel Tools Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* 7. Passenger Interactive Options & Smart Travel Tools Grid */}
+      {/* On desktop (lg+): Shows all cards in a 3-column grid. On mobile: shows the selected tab */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
         {/* Tool 1: Deboarding Stop Alarm */}
-        <div className="p-4 rounded-xl border border-border bg-bg-surface shadow-xl flex flex-col justify-between space-y-3">
+        <div
+          className={`p-4 rounded-xl border border-border bg-bg-surface shadow-xl flex-col justify-between space-y-3 ${
+            mobileTab === "ALARM" ? "flex" : "hidden lg:flex"
+          }`}
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-yellow-400/20 text-yellow-400 flex items-center justify-center">
@@ -441,7 +617,7 @@ export function PassengerJourneyView() {
                 <h4 className="text-xs font-bold text-tx-primary font-mono uppercase">
                   Deboarding Stop Alarm
                 </h4>
-                <p className="text-[11px] text-tx-muted">Sound alert before your stop</p>
+                <p className="text-[11px] text-tx-muted">Sound chime 1 stop before drop-off</p>
               </div>
             </div>
             <button
@@ -458,7 +634,7 @@ export function PassengerJourneyView() {
 
           <div className="space-y-2 text-xs font-mono">
             <div>
-              <label className="text-[10px] text-tx-muted block mb-1">MY DROP-OFF STOP:</label>
+              <label className="text-[10px] text-tx-muted block mb-1">MY DROP-OFF STATION:</label>
               <select
                 value={destinationStop}
                 onChange={(e) => setDestinationStop(e.target.value)}
@@ -486,60 +662,18 @@ export function PassengerJourneyView() {
             {alarmEnabled && (
               <div className="text-[10px] text-nexus-safe flex items-center gap-1.5 font-medium">
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>We will chime when bus approaches 1 stop prior.</span>
+                <span>Alarm active: Chimes when approaching 1 stop prior.</span>
               </div>
             )}
           </div>
         </div>
 
-        {/* Tool 2: Request Stop (Digital Stop Bell) */}
-        <div className="p-4 rounded-xl border border-border bg-bg-surface shadow-xl flex flex-col justify-between space-y-3">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-nexus-cyan/20 text-nexus-cyan flex items-center justify-center">
-              <Bell className="w-4 h-4" />
-            </div>
-            <div>
-              <h4 className="text-xs font-bold text-tx-primary font-mono uppercase">
-                Digital Stop Bell
-              </h4>
-              <p className="text-[11px] text-tx-muted">Notify pilot to stop at next station</p>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-xs text-tx-secondary">
-              Signal the pilot console that you or a fellow passenger wish to alight at{" "}
-              <strong className="text-white">{schedule?.nextStop || "the next stop"}</strong>.
-            </p>
-
-            <button
-              onClick={handleRequestStop}
-              disabled={stopRequested}
-              className={`w-full py-3 px-4 rounded-xl font-bold font-mono text-xs flex items-center justify-center gap-2 transition-all shadow-xl ${
-                stopRequested
-                  ? "bg-nexus-safe text-black shadow-glow-safe"
-                  : "bg-nexus-cyan hover:bg-nexus-cyan/90 text-black shadow-glow active:scale-[0.98]"
-              }`}
-            >
-              <Volume2 className="w-4 h-4" />
-              <span>
-                {stopRequested
-                  ? "✓ STOP REQUEST SENT TO PILOT"
-                  : "RING STOP BELL (REQUEST NEXT STOP)"}
-              </span>
-            </button>
-
-            {stopRequested && (
-              <div className="p-2 rounded-lg bg-nexus-safe/10 border border-nexus-safe/30 text-[11px] text-nexus-safe font-mono flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Pilot console alerted: Stop confirmed at {schedule?.nextStop}.</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Tool 3: Digital Pass & QR Ticket */}
-        <div className="p-4 rounded-xl border border-border bg-bg-surface shadow-xl flex flex-col justify-between space-y-3">
+        {/* Tool 2: Digital Transit Pass & QR Inspection */}
+        <div
+          className={`p-4 rounded-xl border border-border bg-bg-surface shadow-xl flex-col justify-between space-y-3 ${
+            mobileTab === "TICKET" ? "flex" : "hidden lg:flex"
+          }`}
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-nexus-blue/20 text-nexus-cyan flex items-center justify-center">
@@ -573,53 +707,20 @@ export function PassengerJourneyView() {
           </div>
 
           <button
-            onClick={() => setShowQrModal(!showQrModal)}
-            className="w-full py-2 px-3 rounded-lg bg-bg-elevated hover:bg-bg-hover text-tx-primary border border-border text-xs font-mono font-bold flex items-center justify-center gap-2 transition-colors"
+            onClick={() => setShowQrModal(true)}
+            className="w-full py-2.5 px-3 rounded-lg bg-nexus-cyan/15 hover:bg-nexus-cyan/25 text-nexus-cyan border border-nexus-cyan/40 text-xs font-mono font-bold flex items-center justify-center gap-2 transition-colors shadow-sm"
           >
-            <QrCode className="w-3.5 h-3.5 text-nexus-cyan" />
-            <span>{showQrModal ? "Hide QR Ticket" : "Show QR Ticket for Inspection"}</span>
+            <QrCode className="w-4 h-4" />
+            <span>Open Full-Screen QR Ticket</span>
           </button>
         </div>
 
-        {/* Tool 4: Share Live Ride */}
-        <div className="p-4 rounded-xl border border-border bg-bg-surface shadow-xl flex flex-col justify-between space-y-3">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-nexus-cyan/15 text-nexus-cyan flex items-center justify-center">
-              <Share2 className="w-4 h-4" />
-            </div>
-            <div>
-              <h4 className="text-xs font-bold text-tx-primary font-mono uppercase">
-                Share Live Trip
-              </h4>
-              <p className="text-[11px] text-tx-muted">Send live tracking to family & friends</p>
-            </div>
-          </div>
-
-          <p className="text-xs text-tx-secondary">
-            Share your real-time bus position, arrival ETA, and destination details with family
-            members.
-          </p>
-
-          <button
-            onClick={handleShareRide}
-            className="w-full py-2.5 px-3 rounded-lg bg-bg-elevated hover:bg-bg-hover text-nexus-cyan border border-nexus-cyan/40 text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all shadow-sm"
-          >
-            {copiedShare ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-nexus-safe" />
-                <span className="text-nexus-safe">Live Ride Details Copied!</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-3.5 h-3.5" />
-                <span>Copy Live Tracking Info</span>
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* Tool 5: Passenger Safety SOS */}
-        <div className="p-4 rounded-xl border border-nexus-critical/30 bg-bg-surface shadow-xl flex flex-col justify-between space-y-3">
+        {/* Tool 3: Passenger Safety SOS & Helplines */}
+        <div
+          className={`p-4 rounded-xl border border-nexus-critical/30 bg-bg-surface shadow-xl flex-col justify-between space-y-3 ${
+            mobileTab === "SAFETY" ? "flex" : "hidden lg:flex"
+          }`}
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-nexus-critical/20 text-nexus-critical flex items-center justify-center">
@@ -627,43 +728,52 @@ export function PassengerJourneyView() {
               </div>
               <div>
                 <h4 className="text-xs font-bold text-tx-primary font-mono uppercase">
-                  Passenger Safety SOS
+                  Safety & Emergency SOS
                 </h4>
                 <p className="text-[11px] text-tx-muted">Kanpur Transport Command</p>
               </div>
             </div>
           </div>
 
-          <div className="text-[11px] font-mono text-tx-secondary space-y-1">
-            <div className="flex justify-between">
-              <span>Police Helpline:</span>
-              <strong className="text-white">112</strong>
+          <div className="text-[11px] font-mono text-tx-secondary space-y-1.5 p-2 rounded-lg bg-bg-elevated/70 border border-border">
+            <div className="flex justify-between items-center">
+              <span>Police Emergency:</span>
+              <a href="tel:112" className="text-white font-bold hover:underline flex items-center gap-1">
+                <PhoneCall className="w-3 h-3 text-nexus-cyan" /> 112
+              </a>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between items-center">
               <span>Women Powerline:</span>
-              <strong className="text-pink-400">1090</strong>
+              <a href="tel:1090" className="text-pink-400 font-bold hover:underline flex items-center gap-1">
+                <PhoneCall className="w-3 h-3 text-pink-400" /> 1090
+              </a>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between items-center">
               <span>Transport Help:</span>
-              <strong className="text-nexus-cyan">1073</strong>
+              <a href="tel:1073" className="text-nexus-cyan font-bold hover:underline flex items-center gap-1">
+                <PhoneCall className="w-3 h-3 text-nexus-cyan" /> 1073
+              </a>
             </div>
           </div>
 
           <button
             onClick={() => {
-              setSosActive(true);
               setSosConfirmed(true);
               setTimeout(() => setSosConfirmed(false), 5000);
             }}
             className="w-full py-2.5 px-3 rounded-lg bg-nexus-critical/20 hover:bg-nexus-critical/30 text-nexus-critical border border-nexus-critical/50 text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all shadow-glow-critical"
           >
-            <ShieldAlert className="w-3.5 h-3.5" />
+            <ShieldAlert className="w-4 h-4" />
             <span>{sosConfirmed ? "ALERT SENT TO CONTROL ROOM" : "TRANSMIT EMERGENCY SOS"}</span>
           </button>
         </div>
 
-        {/* Tool 6: Corridor Timetable Quick View */}
-        <div className="p-4 rounded-xl border border-border bg-bg-surface shadow-xl flex flex-col justify-between space-y-3">
+        {/* Tool 4: Route Timetable Quick Info */}
+        <div
+          className={`p-4 rounded-xl border border-border bg-bg-surface shadow-xl flex-col justify-between space-y-3 ${
+            mobileTab === "INFO" ? "flex" : "hidden lg:flex"
+          }`}
+        >
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-nexus-safe/20 text-nexus-safe flex items-center justify-center">
               <Clock className="w-4 h-4" />
@@ -678,16 +788,16 @@ export function PassengerJourneyView() {
 
           <div className="text-[11px] font-mono text-tx-secondary space-y-1.5 p-2 rounded-lg bg-bg-elevated/70 border border-border">
             <div className="flex justify-between">
-              <span className="text-tx-muted">Operating Hours:</span>
+              <span className="text-tx-muted">Hours:</span>
               <span className="text-tx-primary font-bold">06:00 AM – 10:30 PM</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-tx-muted">Peak Frequency:</span>
+              <span className="text-tx-muted">Frequency:</span>
               <span className="text-nexus-safe font-bold">Every 15 mins</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-tx-muted">Daily Trips:</span>
-              <span className="text-nexus-cyan font-bold">48 Scheduled Departures</span>
+              <span className="text-tx-muted">Departures:</span>
+              <span className="text-nexus-cyan font-bold">48 Trips Daily</span>
             </div>
           </div>
 
@@ -695,69 +805,77 @@ export function PassengerJourneyView() {
             onClick={() => (window.location.href = "/routes")}
             className="w-full py-2 px-3 rounded-lg bg-bg-elevated hover:bg-bg-hover text-tx-secondary hover:text-tx-primary border border-border text-xs font-mono flex items-center justify-center gap-1.5 transition-colors"
           >
-            <span>View Full Timetable & Route Map</span>
+            <span>View Full Timetables</span>
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      {/* QR Ticket Modal / Expanded View */}
+      {/* 8. Full-Screen / Modal QR Ticket Experience (High Brightness for Conductor) */}
       {showQrModal && (
-        <div className="p-5 rounded-2xl border border-nexus-cyan/50 bg-bg-surface/95 backdrop-blur-xl shadow-2xl animate-fade-in max-w-md mx-auto space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-border">
-            <div className="flex items-center gap-2">
-              <QrCode className="w-5 h-5 text-nexus-cyan" />
-              <span className="font-bold font-mono text-sm text-tx-primary">
-                KANPUR METRO & E-BUS SMART TICKET
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+          <div className="p-5 rounded-2xl border border-nexus-cyan/50 bg-bg-surface shadow-2xl max-w-sm w-full space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <div className="flex items-center gap-2">
+                <QrCode className="w-5 h-5 text-nexus-cyan" />
+                <span className="font-bold font-mono text-xs sm:text-sm text-tx-primary">
+                  KANPUR TRANSIT PASS
+                </span>
+              </div>
+              <button
+                onClick={() => setShowQrModal(false)}
+                className="text-tx-muted hover:text-white text-sm w-7 h-7 rounded-lg flex items-center justify-center bg-bg-elevated"
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* High-Contrast White QR Graphic */}
+            <div className="p-5 rounded-xl bg-white flex flex-col items-center justify-center text-black space-y-2 shadow-inner">
+              <div className="w-44 h-44 border-4 border-black p-2 flex items-center justify-center">
+                <div className="grid grid-cols-6 gap-1 w-full h-full p-1">
+                  {Array.from({ length: 36 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className={`rounded-sm ${
+                        (i % 2 === 0 && i % 3 === 0) || i < 6 || i > 30 || i % 7 === 0
+                          ? "bg-black"
+                          : "bg-transparent"
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+              <span className="text-[10px] font-mono tracking-widest uppercase font-bold text-gray-700">
+                TAP OR SCAN FOR VALIDATION
               </span>
             </div>
-            <button
-              onClick={() => setShowQrModal(false)}
-              className="text-tx-muted hover:text-white text-xs w-6 h-6 rounded flex items-center justify-center bg-bg-elevated"
-            >
-              &times;
-            </button>
-          </div>
 
-          {/* QR Graphic Mockup */}
-          <div className="p-6 rounded-xl bg-white flex flex-col items-center justify-center text-black space-y-2">
-            <div className="w-40 h-40 border-4 border-black p-2 flex items-center justify-center">
-              {/* Scalable QR matrix illustration */}
-              <div className="grid grid-cols-6 gap-1 w-full h-full p-1">
-                {Array.from({ length: 36 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className={`rounded-sm ${
-                      (i % 2 === 0 && i % 3 === 0) || i < 6 || i > 30 || i % 7 === 0
-                        ? "bg-black"
-                        : "bg-transparent"
-                    }`}
-                  />
-                ))}
+            <div className="text-xs font-mono space-y-1.5 text-tx-secondary p-2.5 rounded-lg bg-bg-elevated border border-border">
+              <div className="flex justify-between">
+                <span>Passenger:</span>
+                <strong className="text-white">{currentUser?.name || "Commuter"}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span>Pass ID:</span>
+                <strong className="text-nexus-cyan font-bold">{currentUser?.badgeOrId || "KNP-COMM-7702"}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span>Bus Riding:</span>
+                <strong className="text-white">{activeBus.id} ({activeBus.registration})</strong>
+              </div>
+              <div className="flex justify-between">
+                <span>Status:</span>
+                <strong className="text-nexus-safe font-bold">VALID &bull; AC CORRIDOR</strong>
               </div>
             </div>
-            <span className="text-[10px] font-mono tracking-widest uppercase font-bold text-gray-700">
-              SCAN FOR CONDUCTOR VALIDATION
-            </span>
-          </div>
 
-          <div className="text-xs font-mono space-y-1 text-tx-secondary">
-            <div className="flex justify-between">
-              <span>Cardholder:</span>
-              <strong className="text-white">{currentUser?.name || "Commuter"}</strong>
-            </div>
-            <div className="flex justify-between">
-              <span>Token ID:</span>
-              <strong className="text-nexus-cyan">#KNP-TKT-99420-E</strong>
-            </div>
-            <div className="flex justify-between">
-              <span>Bus Assigned:</span>
-              <strong className="text-white">{activeBus.id} ({activeBus.registration})</strong>
-            </div>
-            <div className="flex justify-between">
-              <span>Valid Until:</span>
-              <strong className="text-nexus-safe">Today 11:59 PM</strong>
-            </div>
+            <button
+              onClick={() => setShowQrModal(false)}
+              className="w-full py-2.5 rounded-xl bg-nexus-cyan text-black font-bold font-mono text-xs shadow-glow"
+            >
+              Close Pass Ticket
+            </button>
           </div>
         </div>
       )}
